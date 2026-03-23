@@ -22,8 +22,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 public annotation class NetworkScope
+
+@JvmInline
+public value class NetworkCoroutineScope(public val coroutineScope: CoroutineScope)
 
 public sealed interface ActiveNetwork {
   public val network: Network
@@ -41,15 +47,15 @@ public sealed interface ActiveNetwork {
 @DependencyGraph(NetworkScope::class)
 public interface NetworkGraph {
   public val activeNetwork: ActiveNetwork
-  public val coroutineScope: CoroutineScope
-  public val networkCapabilities: SharedFlow<NetworkCapabilities>
+  public val coroutineScope: NetworkCoroutineScope
+  public val networkCapabilities: StateFlow<NetworkCapabilities?>
 
   @DependencyGraph.Factory
   public interface Factory {
     public fun create(
       @Provides activeNetwork: ActiveNetwork,
-      @Provides coroutineScope: CoroutineScope,
-      @Provides networkCapabilities: SharedFlow<NetworkCapabilities>,
+      @Provides coroutineScope: NetworkCoroutineScope,
+      @Provides networkCapabilities: StateFlow<NetworkCapabilities?>,
     ): NetworkGraph
   }
 }
@@ -69,13 +75,9 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
 
     connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
       override fun onAvailable(network: Network) {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val capabilitiesFlow = MutableSharedFlow<NetworkCapabilities>(replay = 1)
-
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val capabilities = connectivityManager.getNetworkCapabilities(network)
-        if (capabilities != null) {
-          capabilitiesFlow.tryEmit(capabilities)
-        }
+        val capabilitiesFlow = MutableStateFlow<NetworkCapabilities?>(capabilities)
 
         var activeNetwork: ActiveNetwork = ActiveNetwork.Other(network)
         if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) {
@@ -93,8 +95,8 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
 
         val graph = networkGraphFactory.create(
           activeNetwork = activeNetwork,
-          coroutineScope = scope,
-          networkCapabilities = capabilitiesFlow.asSharedFlow()
+          coroutineScope = NetworkCoroutineScope(scope),
+          networkCapabilities = capabilitiesFlow.asStateFlow()
         )
 
         activeNetworks[network] = NetworkState(
@@ -105,7 +107,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
       }
 
       override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-        activeNetworks[network]?.capabilitiesFlow?.tryEmit(networkCapabilities)
+        activeNetworks[network]?.capabilitiesFlow?.value = networkCapabilities
       }
 
       override fun onLost(network: Network) {
@@ -117,6 +119,6 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
   private class NetworkState(
     val graph: NetworkGraph,
     val scope: CoroutineScope,
-    val capabilitiesFlow: MutableSharedFlow<NetworkCapabilities>
+    val capabilitiesFlow: MutableStateFlow<NetworkCapabilities?>
   )
 }
