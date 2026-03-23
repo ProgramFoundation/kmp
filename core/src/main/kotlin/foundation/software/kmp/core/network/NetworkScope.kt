@@ -70,7 +70,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
   public fun startObserving() {
     val connectivityManager = applicationContext.context.getSystemService(ConnectivityManager::class.java)
     val request = NetworkRequest.Builder()
-      .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+      .clearCapabilities()
       .build()
 
     connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
