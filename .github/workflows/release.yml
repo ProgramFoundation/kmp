@@ -23,11 +23,22 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: ${{ github.event_name != 'push' }}
 
       - name: Build Release APK
         run: ./gradlew :app:assembleRelease
 
       - name: Upload APK to Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload APK as Artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 7
