@@ -50,7 +50,6 @@ public interface DisplayModule {
   }
 
   @Provides
-  @SingleIn(DisplayScope::class)
   public fun provideDisplayMetrics(displayContext: DisplayContext): android.util.DisplayMetrics {
     return displayContext.context.resources.displayMetrics
   }
