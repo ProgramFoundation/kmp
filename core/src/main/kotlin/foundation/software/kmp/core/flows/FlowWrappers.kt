@@ -33,6 +33,7 @@ public class SensorFlows @Inject constructor(
   private val scope: ApplicationCoroutineScope,
   private val ioDispatcher: IoDispatcher
 ) {
+  // TODO: Update to sealed value class once Kotlin 2.1 is adopted.
   public sealed interface SensorResult {
     public data class SensorChanged(public val event: SensorEvent) : SensorResult
     public data class AccuracyChanged(public val accuracy: Int) : SensorResult

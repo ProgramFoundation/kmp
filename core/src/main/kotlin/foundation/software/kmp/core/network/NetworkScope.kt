@@ -107,7 +107,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
       }
 
       override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-        activeNetworks[network]?.capabilitiesFlow?.value = networkCapabilities
+        activeNetworks[network]?.updateCapabilities(networkCapabilities)
       }
 
       override fun onLost(network: Network) {
@@ -119,6 +119,10 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
   private class NetworkState(
     val graph: NetworkGraph,
     val scope: CoroutineScope,
-    val capabilitiesFlow: MutableStateFlow<NetworkCapabilities?>
-  )
+    private val capabilitiesFlow: MutableStateFlow<NetworkCapabilities?>
+  ) {
+    fun updateCapabilities(capabilities: NetworkCapabilities) {
+      capabilitiesFlow.value = capabilities
+    }
+  }
 }
