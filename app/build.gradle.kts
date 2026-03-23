@@ -66,5 +66,19 @@ android {
     versionName = "1.0"
   }
 
-  buildTypes { release { isMinifyEnabled = false } }
+  signingConfigs {
+    create("release") {
+      storeFile = file("debug.keystore")
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
+    }
+  }
+
+  buildTypes {
+    release {
+      isMinifyEnabled = false
+      signingConfig = signingConfigs.getByName("release")
+    }
+  }
 }
