@@ -13,7 +13,7 @@ import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import dev.zacsweers.metro.ContributesTo
-import dev.zacsweers.metro.createGraph
+import dev.zacsweers.metro.createGraphFactory
 import foundation.software.kmp.core.context.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,32 +31,33 @@ public annotation class NetworkScope
 @JvmInline
 public value class NetworkCoroutineScope(public val coroutineScope: CoroutineScope)
 
-public sealed interface ActiveNetwork {
-  public val network: Network
-
-  public data class Cellular(
-    override val network: Network,
-    public val telephonyManager: TelephonyManager
-  ) : ActiveNetwork
-
-  public data class Other(
-    override val network: Network
-  ) : ActiveNetwork
-}
-
 @DependencyGraph(NetworkScope::class)
 public interface NetworkGraph {
-  public val activeNetwork: ActiveNetwork
+  public val network: Network
   public val coroutineScope: NetworkCoroutineScope
   public val networkCapabilities: StateFlow<NetworkCapabilities?>
 
   @DependencyGraph.Factory
   public interface Factory {
     public fun create(
-      @Provides activeNetwork: ActiveNetwork,
+      @Provides network: Network,
       @Provides coroutineScope: NetworkCoroutineScope,
       @Provides networkCapabilities: StateFlow<NetworkCapabilities?>,
     ): NetworkGraph
+  }
+}
+
+public annotation class TelephonyScope
+
+@DependencyGraph(TelephonyScope::class)
+public interface TelephonyGraph {
+  public val telephonyManager: TelephonyManager
+
+  @DependencyGraph.Factory
+  public interface Factory {
+    public fun create(
+      @Provides telephonyManager: TelephonyManager,
+    ): TelephonyGraph
   }
 }
 
@@ -64,11 +65,11 @@ public interface NetworkGraph {
 public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
   private val applicationContext: ApplicationContext,
   private val networkGraphFactory: NetworkGraph.Factory,
+  private val connectivityManager: ConnectivityManager,
 ) {
   private val activeNetworks = mutableMapOf<Network, NetworkState>()
 
   public fun startObserving() {
-    val connectivityManager = applicationContext.context.getSystemService(ConnectivityManager::class.java)
     val request = NetworkRequest.Builder()
       .clearCapabilities()
       .build()
@@ -79,7 +80,13 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
         val capabilities = connectivityManager.getNetworkCapabilities(network)
         val capabilitiesFlow = MutableStateFlow<NetworkCapabilities?>(capabilities)
 
-        var activeNetwork: ActiveNetwork = ActiveNetwork.Other(network)
+        val graph = networkGraphFactory.create(
+          network = network,
+          coroutineScope = NetworkCoroutineScope(scope),
+          networkCapabilities = capabilitiesFlow.asStateFlow()
+        )
+
+        var telephonyGraph: TelephonyGraph? = null
         if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) {
           var tm = applicationContext.context.getSystemService(TelephonyManager::class.java)
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -89,18 +96,13 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
             }
           }
           if (tm != null) {
-            activeNetwork = ActiveNetwork.Cellular(network, tm)
+            telephonyGraph = dev.zacsweers.metro.createGraphFactory<TelephonyGraph.Factory>().create(tm)
           }
         }
 
-        val graph = networkGraphFactory.create(
-          activeNetwork = activeNetwork,
-          coroutineScope = NetworkCoroutineScope(scope),
-          networkCapabilities = capabilitiesFlow.asStateFlow()
-        )
-
         activeNetworks[network] = NetworkState(
           graph = graph,
+          telephonyGraph = telephonyGraph,
           scope = scope,
           capabilitiesFlow = capabilitiesFlow
         )
@@ -118,6 +120,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
 
   private class NetworkState(
     val graph: NetworkGraph,
+    val telephonyGraph: TelephonyGraph?,
     val scope: CoroutineScope,
     private val capabilitiesFlow: MutableStateFlow<NetworkCapabilities?>
   ) {
