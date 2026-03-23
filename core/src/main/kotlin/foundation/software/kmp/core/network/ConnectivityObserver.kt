@@ -9,21 +9,12 @@ import android.net.NetworkRequest
 import android.os.Build
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.createGraphFactory
-import foundation.software.kmp.core.context.ApplicationContext
-import foundation.software.kmp.core.coroutines.IoDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 @SingleIn(AppScope::class)
 public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
-  private val applicationContext: ApplicationContext,
   private val networkGraphFactory: NetworkGraph.Factory,
   private val connectivityManager: ConnectivityManager,
-  private val ioDispatcher: IoDispatcher,
 ) {
   private val activeNetworks = mutableMapOf<Network, NetworkState>()
 
@@ -43,61 +34,27 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
 
     connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
       override fun onAvailable(network: Network) {
-        val scope = CoroutineScope(SupervisorJob() + ioDispatcher.dispatcher)
-
-        activeNetworks[network] = NetworkState(
-          graph = null,
-          telephonyGraph = null,
-          scope = scope,
-          capabilitiesFlow = MutableStateFlow(null)
-        )
+        activeNetworks[network] = NetworkState(networkGraphFactory.create(network))
       }
 
       override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
         val state = activeNetworks[network] ?: return
 
-        if (state.graph == null) {
-          val graph = networkGraphFactory.create(
-            network = network,
-            coroutineScope = NetworkCoroutineScope(state.scope),
-            networkCapabilities = state.capabilitiesFlow.asStateFlow()
-          )
-
-          var telephonyGraph: TelephonyGraph? = null
-          if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) {
-            var tm = applicationContext.context.getSystemService(android.telephony.TelephonyManager::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-              val specifier = networkCapabilities.networkSpecifier
-              if (specifier is android.net.TelephonyNetworkSpecifier) {
-                tm = tm?.createForSubscriptionId(specifier.subscriptionId) ?: tm
-              }
-            }
-            if (tm != null) {
-              telephonyGraph = createGraphFactory<TelephonyGraph.Factory>().create(tm)
-            }
-          }
-
-          state.graph = graph
-          state.telephonyGraph = telephonyGraph
+        if (state.telephonyGraph == null && networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+          state.telephonyGraph = state.graph.telephonyGraphFactory.create()
         }
 
-        state.updateCapabilities(networkCapabilities)
+        state.graph.networkCapabilities.value = networkCapabilities
       }
 
       override fun onLost(network: Network) {
-        activeNetworks.remove(network)?.scope?.cancel("Network lost")
+        activeNetworks.remove(network)?.graph?.coroutineScope?.coroutineScope?.cancel("Network lost")
       }
     })
   }
 
   private class NetworkState(
-    var graph: NetworkGraph?,
-    var telephonyGraph: TelephonyGraph?,
-    val scope: CoroutineScope,
-    val capabilitiesFlow: MutableStateFlow<NetworkCapabilities?>
-  ) {
-    fun updateCapabilities(capabilities: NetworkCapabilities) {
-      capabilitiesFlow.value = capabilities
-    }
-  }
+    val graph: NetworkGraph,
+    var telephonyGraph: TelephonyGraph? = null,
+  )
 }
