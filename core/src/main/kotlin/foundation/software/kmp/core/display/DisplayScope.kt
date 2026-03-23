@@ -70,9 +70,9 @@ public interface DisplayModule {
 public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
   private val applicationContext: ApplicationContext,
   private val displayGraphFactory: DisplayGraph.Factory,
-  private val appScope: ApplicationCoroutineScope
+  private val appScope: ApplicationCoroutineScope,
+  private val displayManager: DisplayManager,
 ) {
-  private val displayManager = applicationContext.context.getSystemService(DisplayManager::class.java)
   private val activeDisplays = mutableMapOf<Int, DisplayState>()
 
   private val _displaysFlow = MutableStateFlow<Map<Int, DisplayState>>(emptyMap())

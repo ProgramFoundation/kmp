@@ -3,6 +3,7 @@
 package foundation.software.kmp.core.system
 
 import android.hardware.SensorManager
+import android.hardware.display.DisplayManager
 import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.telephony.TelephonyManager
@@ -33,4 +34,9 @@ public interface SystemServicesModule {
   @SingleIn(AppScope::class)
   public fun provideTelephonyManager(applicationContext: ApplicationContext): TelephonyManager =
     applicationContext.context.getSystemService(TelephonyManager::class.java)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  public fun provideDisplayManager(applicationContext: ApplicationContext): DisplayManager =
+    applicationContext.context.getSystemService(DisplayManager::class.java)
 }
