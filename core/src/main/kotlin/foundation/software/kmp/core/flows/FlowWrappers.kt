@@ -67,8 +67,8 @@ public class SensorFlows @Inject constructor(
     .flowOn(ioDispatcher.dispatcher)
     .shareIn(scope.coroutineScope, SharingStarted.WhileSubscribed(), replay = 1)
 
-  public val accelerometerFlow: SharedFlow<SensorResult> by lazy { sensorFlow(Sensor.TYPE_ACCELEROMETER) }
-  public val gyroscopeFlow: SharedFlow<SensorResult> by lazy { sensorFlow(Sensor.TYPE_GYROSCOPE) }
+  public val accelerometerFlow: SharedFlow<SensorResult> = sensorFlow(Sensor.TYPE_ACCELEROMETER)
+  public val gyroscopeFlow: SharedFlow<SensorResult> = sensorFlow(Sensor.TYPE_GYROSCOPE)
 }
 
 @SingleIn(AppScope::class)
@@ -96,8 +96,8 @@ public class LocationFlows @Inject constructor(
     .flowOn(ioDispatcher.dispatcher)
     .shareIn(scope.coroutineScope, SharingStarted.WhileSubscribed(), replay = 1)
 
-  public val gpsLocationFlow: SharedFlow<Location> by lazy { locationFlow(LocationManager.GPS_PROVIDER) }
-  public val networkLocationFlow: SharedFlow<Location> by lazy { locationFlow(LocationManager.NETWORK_PROVIDER) }
+  public val gpsLocationFlow: SharedFlow<Location> = locationFlow(LocationManager.GPS_PROVIDER)
+  public val networkLocationFlow: SharedFlow<Location> = locationFlow(LocationManager.NETWORK_PROVIDER)
 }
 
 @SingleIn(AppScope::class)
