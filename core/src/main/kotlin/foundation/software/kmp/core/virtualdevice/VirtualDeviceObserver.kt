@@ -18,31 +18,26 @@ public class VirtualDeviceObserver @dev.zacsweers.metro.Inject constructor(
   private val virtualDeviceManager: VirtualDeviceManager,
   private val virtualDeviceGraphFactory: VirtualDeviceGraph.Factory,
 ) {
-  private val activeDeviceGraphs = mutableMapOf<Int, VirtualDeviceGraph>()
-  private val _virtualDevicesFlow: MutableStateFlow<Map<Int, VirtualDeviceGraph>>
+  private val _virtualDevicesFlow: MutableStateFlow<Set<VirtualDeviceGraph>>
 
   init {
-    virtualDeviceManager.virtualDevices.forEach { device ->
-      val graph = virtualDeviceGraphFactory.create(device)
-      activeDeviceGraphs[device.deviceId] = graph
-    }
-    _virtualDevicesFlow = MutableStateFlow(activeDeviceGraphs.toMap())
+    val graphs = virtualDeviceManager.virtualDevices.map { virtualDeviceGraphFactory.create(it) }.toMutableSet()
+    _virtualDevicesFlow = MutableStateFlow(graphs)
   }
 
-  public val virtualDevicesFlow: StateFlow<Map<Int, VirtualDeviceGraph>> = _virtualDevicesFlow.asStateFlow()
+  public val virtualDevicesFlow: StateFlow<Set<VirtualDeviceGraph>> = _virtualDevicesFlow.asStateFlow()
 
   public fun startObserving() {
     val listener = object : VirtualDeviceManager.VirtualDeviceListener {
       override fun onVirtualDeviceCreated(deviceId: Int) {
         val device = virtualDeviceManager.virtualDevices.find { it.deviceId == deviceId } ?: return
-        val graph = virtualDeviceGraphFactory.create(device)
-        activeDeviceGraphs[deviceId] = graph
-        _virtualDevicesFlow.value = activeDeviceGraphs.toMap()
+        _virtualDevicesFlow.value = _virtualDevicesFlow.value + virtualDeviceGraphFactory.create(device)
       }
 
       override fun onVirtualDeviceDeleted(deviceId: Int) {
-        activeDeviceGraphs.remove(deviceId)?.coroutineScope?.coroutineScope?.cancel("Virtual device removed")
-        _virtualDevicesFlow.value = activeDeviceGraphs.toMap()
+        val removed = _virtualDevicesFlow.value.find { it.virtualDeviceId.id == deviceId } ?: return
+        removed.coroutineScope.coroutineScope.cancel("Virtual device removed")
+        _virtualDevicesFlow.value = _virtualDevicesFlow.value - removed
       }
     }
 
