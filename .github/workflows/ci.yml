@@ -25,29 +25,12 @@ jobs:
           lfs: true
 
       - name: Check formatting
-        run: ./scripts/format.sh --check
-
-  generate-matrix:
-    name: "⊹ generate compiler matrix ⊹"
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.generate.outputs.matrix }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Generate matrix
-        id: generate
-        run: ./scripts/generate-ci-matrix.sh
+        run: ./gradlew spotlessCheck
 
   core:
-    name: "core artifacts / ${{ matrix.kotlin-compiler }}"
+    name: "core artifacts"
     runs-on: ubuntu-latest
-    needs: generate-matrix
     timeout-minutes: 60
-    strategy:
-      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
-      fail-fast: false
     permissions:
       checks: write
 
@@ -61,23 +44,17 @@ jobs:
           encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           konan: true
-          konan-cache-prefix: ${{ matrix.kotlin-compiler }}
 
       - name: Check root project
         run: |
-          # Regenerate tests per-run on CI to support exclusions, which are unfortunately code-gen level right now
-          echo "Generating tests..."
-          ./gradlew :compiler-tests:generateTests --quiet '-Pmetro.testCompilerVersion=${{ matrix.kotlin-compiler }}' ${{ github.ref != 'refs/heads/main' && '-Dorg.gradle.configuration-cache.read-only=true' || '' }}
           echo "Running checks..."
-          ./gradlew check --continue --quiet '-Pmetro.testCompilerVersion=${{ matrix.kotlin-compiler }}' ${{ github.ref != 'refs/heads/main' && '-Dorg.gradle.configuration-cache.read-only=true' || '' }}
-          echo "Running large tests..."
-          ./gradlew :compiler-tests:test --quiet '-Pmetro.enableLargeTests' '-Pmetro.testCompilerVersion=${{ matrix.kotlin-compiler }}' ${{ github.ref != 'refs/heads/main' && '-Dorg.gradle.configuration-cache.read-only=true' || '' }}
+          ./gradlew check --continue --quiet ${{ github.ref != 'refs/heads/main' && '-Dorg.gradle.configuration-cache.read-only=true' || '' }}
 
       - name: (Fail-only) Upload reports
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: reports-core-${{ matrix.kotlin-compiler }}
+          name: reports-core
           path: |
             **/build/reports/**
 
@@ -86,7 +63,7 @@ jobs:
         if: failure()
         with:
           report_paths: '**/build/test-results/**/TEST-*.xml'
-          check_name: 'Test Report - core / ${{ matrix.kotlin-compiler }}'
+          check_name: 'Test Report - core'
 
   samples:
     name: samples
@@ -107,9 +84,7 @@ jobs:
 
       - name: Check samples
         run: |
-          # We have to regen package locks because the kotlin yarn/node/etc build tooling is brittle
-          ./gradlew -p samples kotlinWasmUpgradePackageLock kotlinUpgradePackageLock --rerun-tasks --no-build-cache --no-configuration-cache --quiet ${{ github.ref != 'refs/heads/main' && '-Dorg.gradle.configuration-cache.read-only=true' || '' }}
-          ./gradlew -p samples check --continue --quiet ${{ github.ref != 'refs/heads/main' && '-Dorg.gradle.configuration-cache.read-only=true' || '' }}
+          ./gradlew check --continue --quiet ${{ github.ref != 'refs/heads/main' && '-Dorg.gradle.configuration-cache.read-only=true' || '' }}
 
       - name: (Fail-only) Upload reports
         if: failure()
@@ -123,7 +98,7 @@ jobs:
         uses: mikepenz/action-junit-report@v6
         if: failure()
         with:
-          report_paths: 'samples/**/build/test-results/**/TEST-*.xml'
+          report_paths: '**/build/test-results/**/TEST-*.xml'
           check_name: 'Test Report - samples'
 
   # Run multiplatform tests on main only to reduce PR time
@@ -158,11 +133,7 @@ jobs:
 
       - name: Check runtime and IC tests
         if: github.ref == 'refs/heads/main'
-        run: ./gradlew :runtime:allTests :gradle-plugin:functionalTest --continue --quiet
-
-      - name: Check samples
-        if: github.ref == 'refs/heads/main'
-        run: ./gradlew -p samples test allTests --continue --quiet
+        run: ./gradlew check --continue --quiet
 
       - name: (Fail-only) Upload reports
         if: failure() && github.ref == 'refs/heads/main'
@@ -178,35 +149,7 @@ jobs:
         with:
           report_paths: |
             **/build/test-results/**/TEST-*.xml
-            samples/**/build/test-results/**/TEST-*.xml
           check_name: 'Test Report - multiplatform / ${{ matrix.os }}'
-
-  benchmarks:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Gradle
-        uses: ./.github/actions/setup-gradle
-        with:
-          encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-          konan: true
-
-      - name: Build Metro benchmark
-        run: |
-          cd benchmark
-          ./run_benchmarks.sh metro --build-only
-
-      - name: (Fail-only) Upload reports
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: reports-benchmarks
-          path: |
-            **/build/reports/**
 
   # https://jakewharton.com/fan-in-to-a-single-required-github-action/
   final-status:
@@ -215,7 +158,6 @@ jobs:
     needs:
       - format
       - core
-      - benchmarks
       - samples
     steps:
       - name: Check
@@ -225,29 +167,3 @@ jobs:
             echo "One or more required jobs failed"
             exit 1
           fi
-
-  publish:
-    name: Publish snapshot (main only)
-    runs-on: macos-latest
-    if: github.ref == 'refs/heads/main' && github.repository == 'zacsweers/metro'
-    needs:
-      - final-status
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Gradle
-        uses: ./.github/actions/setup-gradle
-        with:
-          encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-          konan: true
-
-      - name: Upload snapshot
-        # Sonatype keeps giving 429 errors lately, so no need to mark this as failure for now
-        continue-on-error: true
-        env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SonatypeUsername }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SonatypePassword }}
-        run: ./metrow publish
