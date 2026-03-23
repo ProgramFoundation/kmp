@@ -27,18 +27,18 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
   private val activeNetworkStates = mutableMapOf<Network, ActiveNetworkState>()
 
   @android.annotation.SuppressLint("MissingPermission")
-  public fun startObserving(requestBuilder: NetworkRequest.Builder = NetworkRequest.Builder()) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      requestBuilder.clearCapabilities()
-    } else {
-      // Prior to API 30, we have to manually clear out default capabilities if we want ALL networks
-      requestBuilder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
-      requestBuilder.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)
-      requestBuilder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-    }
-
-    val request = requestBuilder.build()
-
+  public fun startObserving(
+    request: NetworkRequest = NetworkRequest.Builder().apply {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        clearCapabilities()
+      } else {
+        // Prior to API 30, we have to manually clear out default capabilities if we want ALL networks
+        removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+        removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)
+        removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+      }
+    }.build(),
+  ) {
     connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
       override fun onAvailable(network: Network) {
         pendingNetworks[network] = PendingNetworkState()
