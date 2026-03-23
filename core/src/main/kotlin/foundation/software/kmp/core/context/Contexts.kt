@@ -24,18 +24,6 @@ public interface ActivityGraph {
 @JvmInline
 public value class ActivityContext(public val context: Context)
 
-public annotation class DisplayScope
-
-@DependencyGraph(DisplayScope::class)
-public interface DisplayGraph {
-  public val displayContext: DisplayContext
-
-  @DependencyGraph.Factory
-  public interface Factory {
-    public fun create(@Provides displayContext: DisplayContext): DisplayGraph
-  }
-}
-
 @JvmInline
 public value class DisplayContext(public val context: Context)
 
