@@ -12,36 +12,17 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
-@JvmInline
-public value class VirtualDeviceId(public val id: Int)
-
-@JvmInline
-public value class VirtualDeviceName(public val name: String)
-
-@JvmInline
-public value class VirtualDeviceCoroutineScope(public val coroutineScope: CoroutineScope)
-
 public annotation class VirtualDeviceScope
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @GraphExtension(VirtualDeviceScope::class)
 public interface VirtualDeviceGraph {
-  public val virtualDeviceId: VirtualDeviceId
-  public val virtualDeviceName: VirtualDeviceName
-  public val coroutineScope: VirtualDeviceCoroutineScope
+  public val device: VirtualDevice
+  public val coroutineScope: CoroutineScope
 
   @Provides
-  public fun provideVirtualDeviceId(device: VirtualDevice): VirtualDeviceId = VirtualDeviceId(device.deviceId)
-
-  @Provides
-  public fun provideVirtualDeviceName(device: VirtualDevice): VirtualDeviceName = VirtualDeviceName(device.name)
-
-  @Provides
-  public fun provideVirtualDeviceCoroutineScope(
-    virtualDeviceName: VirtualDeviceName,
-    ioDispatcher: IoDispatcher,
-  ): VirtualDeviceCoroutineScope =
-    VirtualDeviceCoroutineScope(CoroutineScope(SupervisorJob() + ioDispatcher.dispatcher + CoroutineName(virtualDeviceName.name)))
+  public fun provideCoroutineScope(device: VirtualDevice, ioDispatcher: IoDispatcher): CoroutineScope =
+    CoroutineScope(SupervisorJob() + ioDispatcher.dispatcher + CoroutineName(device.name))
 
   @GraphExtension.Factory
   public interface Factory {
