@@ -34,11 +34,11 @@ public value class DisplayContext(public val context: Context)
 
 public annotation class WindowScope
 
-@DependencyGraph(WindowScope::class)
+@GraphExtension(WindowScope::class)
 public interface WindowGraph {
   public val windowContext: WindowContext
 
-  @DependencyGraph.Factory
+  @GraphExtension.Factory
   public interface Factory {
     public fun create(@Provides windowContext: WindowContext): WindowGraph
   }

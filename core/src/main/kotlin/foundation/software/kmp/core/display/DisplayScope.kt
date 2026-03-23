@@ -7,6 +7,7 @@ import android.view.Display
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.DependencyGraph
+import dev.zacsweers.metro.GraphExtension
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import foundation.software.kmp.core.context.ApplicationContext
@@ -44,7 +45,6 @@ public interface DisplayGraph {
 @SingleIn(AppScope::class)
 public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
   private val applicationContext: ApplicationContext,
-  private val displayGraphFactory: DisplayGraph.Factory,
   private val displayManager: DisplayManager,
   private val appScope: ApplicationCoroutineScope
 ) {
@@ -68,7 +68,7 @@ public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
     val displayFlow = MutableStateFlow(display)
     val displayMetricsFlow = MutableStateFlow(displayContext.context.resources.displayMetrics)
 
-    val graph = displayGraphFactory.create(
+    val graph = dev.zacsweers.metro.createGraphFactory<DisplayGraph.Factory>().create(
       displayId = DisplayId(displayId),
       displayContext = displayContext,
       displayFlow = displayFlow.asStateFlow(),
