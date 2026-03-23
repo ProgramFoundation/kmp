@@ -5,6 +5,9 @@ package foundation.software.kmp.core.network
 import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
+import android.os.Build
+import android.telephony.TelephonyManager
 import dev.zacsweers.metro.GraphExtension
 import dev.zacsweers.metro.Provides
 import foundation.software.kmp.core.coroutines.IoDispatcher
@@ -27,8 +30,38 @@ public interface NetworkGraph {
   public val telephonyGraphFactory: TelephonyGraph.Factory
 
   @Provides
-  public fun provideNetworkCoroutineScope(network: Network, ioDispatcher: IoDispatcher): NetworkCoroutineScope =
-    NetworkCoroutineScope(CoroutineScope(SupervisorJob() + ioDispatcher.dispatcher + CoroutineName("Network-$network")))
+  public fun provideNetworkCoroutineScope(
+    network: Network,
+    networkCapabilities: StateFlow<NetworkCapabilities>,
+    telephonyManager: TelephonyManager,
+    ioDispatcher: IoDispatcher,
+  ): NetworkCoroutineScope {
+    val caps = networkCapabilities.value
+    val name = buildString {
+      when {
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+          append("wifi")
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            (caps.transportInfo as? WifiInfo)?.ssid
+              ?.removeSurrounding("\"")
+              ?.takeIf { it.isNotEmpty() && it != "<unknown ssid>" }
+              ?.let { append("-$it") }
+          }
+        }
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
+          append("cellular")
+          telephonyManager.networkOperatorName
+            .takeIf { it.isNotEmpty() }
+            ?.let { append("-$it") }
+        }
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> append("ethernet")
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> append("vpn")
+        else -> append("network")
+      }
+      append("-$network")
+    }
+    return NetworkCoroutineScope(CoroutineScope(SupervisorJob() + ioDispatcher.dispatcher + CoroutineName(name)))
+  }
 
   @GraphExtension.Factory
   public interface Factory {
