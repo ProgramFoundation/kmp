@@ -36,7 +36,7 @@ public class VirtualDeviceObserver @dev.zacsweers.metro.Inject constructor(
 
       override fun onVirtualDeviceDeleted(deviceId: Int) {
         val removed = _virtualDevicesFlow.value.find { it.device.deviceId == deviceId } ?: return
-        removed.coroutineScope.cancel("Virtual device removed")
+        removed.coroutineScope.cancel("Virtual device removed", Exception("Cancelled by VirtualDeviceObserver"))
         _virtualDevicesFlow.value = _virtualDevicesFlow.value - removed
       }
     }

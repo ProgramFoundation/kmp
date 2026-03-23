@@ -60,7 +60,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
       override fun onLost(network: Network) {
         pendingNetworks.remove(network)
         activeNetworkStates.remove(network)?.let { state ->
-          state.graph.coroutineScope.coroutineScope.cancel("Network lost")
+          state.graph.coroutineScope.coroutineScope.cancel("Network lost", Exception("Cancelled by ConnectivityObserver"))
           _activeNetworks.value = _activeNetworks.value - network
         }
       }
