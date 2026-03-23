@@ -25,19 +25,30 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 public annotation class NetworkScope
 
+public sealed interface ActiveNetwork {
+  public val network: Network
+
+  public data class Cellular(
+    override val network: Network,
+    public val telephonyManager: TelephonyManager
+  ) : ActiveNetwork
+
+  public data class Other(
+    override val network: Network
+  ) : ActiveNetwork
+}
+
 @DependencyGraph(NetworkScope::class)
 public interface NetworkGraph {
-  public val network: Network
+  public val activeNetwork: ActiveNetwork
   public val coroutineScope: CoroutineScope
-  public val telephonyManager: TelephonyManager?
   public val networkCapabilities: SharedFlow<NetworkCapabilities>
 
   @DependencyGraph.Factory
   public interface Factory {
     public fun create(
-      @Provides network: Network,
+      @Provides activeNetwork: ActiveNetwork,
       @Provides coroutineScope: CoroutineScope,
-      @Provides telephonyManager: TelephonyManager?,
       @Provides networkCapabilities: SharedFlow<NetworkCapabilities>,
     ): NetworkGraph
   }
@@ -66,24 +77,23 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
           capabilitiesFlow.tryEmit(capabilities)
         }
 
-        var telephonyManager: TelephonyManager? = null
+        var activeNetwork: ActiveNetwork = ActiveNetwork.Other(network)
         if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) {
-          val tm = applicationContext.context.getSystemService(TelephonyManager::class.java)
+          var tm = applicationContext.context.getSystemService(TelephonyManager::class.java)
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val specifier = capabilities.networkSpecifier
             if (specifier is android.net.TelephonyNetworkSpecifier) {
-              telephonyManager = tm?.createForSubscriptionId(specifier.subscriptionId)
+              tm = tm?.createForSubscriptionId(specifier.subscriptionId) ?: tm
             }
           }
-          if (telephonyManager == null) {
-            telephonyManager = tm
+          if (tm != null) {
+            activeNetwork = ActiveNetwork.Cellular(network, tm)
           }
         }
 
         val graph = networkGraphFactory.create(
-          network = network,
+          activeNetwork = activeNetwork,
           coroutineScope = scope,
-          telephonyManager = telephonyManager,
           networkCapabilities = capabilitiesFlow.asSharedFlow()
         )
 
