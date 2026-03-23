@@ -20,12 +20,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.CoroutineScope
+import dev.zacsweers.metro.Inject
 
-public class SensorFlows(
+public class SensorFlows @Inject constructor(
   private val sensorManager: SensorManager,
   private val scope: CoroutineScope
 ) {
-  public fun sensorFlow(sensorType: Int, samplingPeriodUs: Int = SensorManager.SENSOR_DELAY_NORMAL): SharedFlow<SensorEvent> =
+  public sealed interface SensorResult {
+    public data class SensorChanged(public val event: SensorEvent) : SensorResult
+    public data class AccuracyChanged(public val sensor: Sensor?, public val accuracy: Int) : SensorResult
+  }
+
+  public fun sensorFlow(sensorType: Int, samplingPeriodUs: Int = SensorManager.SENSOR_DELAY_NORMAL): SharedFlow<SensorResult> =
     callbackFlow {
       val sensor = sensorManager.getDefaultSensor(sensorType)
       if (sensor == null) {
@@ -35,10 +41,12 @@ public class SensorFlows(
 
       val listener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent) {
-          trySend(event)
+          trySend(SensorResult.SensorChanged(event))
         }
 
-        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+          trySend(SensorResult.AccuracyChanged(sensor, accuracy))
+        }
       }
 
       sensorManager.registerListener(listener, sensor, samplingPeriodUs)
@@ -48,11 +56,11 @@ public class SensorFlows(
       }
     }.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
 
-  public fun accelerometerFlow(): SharedFlow<SensorEvent> = sensorFlow(Sensor.TYPE_ACCELEROMETER)
-  public fun gyroscopeFlow(): SharedFlow<SensorEvent> = sensorFlow(Sensor.TYPE_GYROSCOPE)
+  public fun accelerometerFlow(): SharedFlow<SensorResult> = sensorFlow(Sensor.TYPE_ACCELEROMETER)
+  public fun gyroscopeFlow(): SharedFlow<SensorResult> = sensorFlow(Sensor.TYPE_GYROSCOPE)
 }
 
-public class LocationFlows(
+public class LocationFlows @Inject constructor(
   private val locationManager: LocationManager,
   private val scope: CoroutineScope
 ) {
@@ -77,7 +85,7 @@ public class LocationFlows(
   public fun networkLocationFlow(): SharedFlow<Location> = locationFlow(LocationManager.NETWORK_PROVIDER)
 }
 
-public class BroadcastFlows(
+public class BroadcastFlows @Inject constructor(
   private val context: Context,
   private val scope: CoroutineScope
 ) {
