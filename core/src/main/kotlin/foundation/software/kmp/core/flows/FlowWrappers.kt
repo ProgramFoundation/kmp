@@ -25,6 +25,7 @@ import dev.zacsweers.metro.SingleIn
 import dev.zacsweers.metro.AppScope
 import foundation.software.kmp.core.coroutines.IoDispatcher
 import foundation.software.kmp.core.coroutines.ApplicationCoroutineScope
+import foundation.software.kmp.core.context.ApplicationContext
 import kotlinx.coroutines.flow.flowOn
 
 @SingleIn(AppScope::class)
@@ -101,7 +102,7 @@ public class LocationFlows @Inject constructor(
 
 @SingleIn(AppScope::class)
 public class BroadcastFlows @Inject constructor(
-  private val context: Context,
+  private val applicationContext: ApplicationContext,
   private val scope: ApplicationCoroutineScope,
   private val ioDispatcher: IoDispatcher
 ) {
@@ -113,10 +114,10 @@ public class BroadcastFlows @Inject constructor(
         }
       }
 
-      context.registerReceiver(receiver, intentFilter)
+      applicationContext.context.registerReceiver(receiver, intentFilter)
 
       awaitClose {
-        context.unregisterReceiver(receiver)
+        applicationContext.context.unregisterReceiver(receiver)
       }
     }
     .flowOn(ioDispatcher.dispatcher)
