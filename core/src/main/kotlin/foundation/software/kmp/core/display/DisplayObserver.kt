@@ -3,8 +3,11 @@
 package foundation.software.kmp.core.display
 
 import android.hardware.display.DisplayManager
+import android.util.DisplayMetrics
+import android.view.Display
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.SingleIn
+import foundation.software.kmp.core.context.ApplicationContext
 import foundation.software.kmp.core.coroutines.ApplicationCoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,40 +17,58 @@ import kotlinx.coroutines.flow.asStateFlow
 public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
   private val displayManager: DisplayManager,
   private val appScope: ApplicationCoroutineScope,
+  private val applicationContext: ApplicationContext,
   private val displayGraphFactory: DisplayGraph.Factory,
 ) {
-  private val activeDisplays = mutableMapOf<Int, DisplayGraph>()
+  private val activeDisplayStates = mutableMapOf<Int, ActiveDisplayState>()
+  private val _displaysFlow: MutableStateFlow<Map<Int, DisplayGraph>>
 
-  private fun getInitialDisplays(): Map<Int, DisplayGraph> {
+  init {
     displayManager.displays.forEach { display ->
-      activeDisplays[display.displayId] = displayGraphFactory.create(DisplayId(display.displayId))
+      createDisplayState(display.displayId)?.let { activeDisplayStates[display.displayId] = it }
     }
-    return activeDisplays.toMap()
+    _displaysFlow = MutableStateFlow(activeDisplayStates.mapValues { it.value.graph })
   }
 
-  private val _displaysFlow = MutableStateFlow<Map<Int, DisplayGraph>>(getInitialDisplays())
   public val displaysFlow: StateFlow<Map<Int, DisplayGraph>> = _displaysFlow.asStateFlow()
 
   public fun startObserving() {
     val listener = object : DisplayManager.DisplayListener {
       override fun onDisplayAdded(displayId: Int) {
-        activeDisplays[displayId] = displayGraphFactory.create(DisplayId(displayId))
-        _displaysFlow.value = activeDisplays.toMap()
+        createDisplayState(displayId)?.let { state ->
+          activeDisplayStates[displayId] = state
+          _displaysFlow.value = activeDisplayStates.mapValues { it.value.graph }
+        }
       }
 
       override fun onDisplayRemoved(displayId: Int) {
-        activeDisplays.remove(displayId)
-        _displaysFlow.value = activeDisplays.toMap()
+        activeDisplayStates.remove(displayId)
+        _displaysFlow.value = activeDisplayStates.mapValues { it.value.graph }
       }
 
       override fun onDisplayChanged(displayId: Int) {
-        val graph = activeDisplays[displayId] ?: return
+        val state = activeDisplayStates[displayId] ?: return
         val display = displayManager.getDisplay(displayId) ?: return
-        graph.displayFlow.value = display
-        graph.displayMetricsFlow.value = graph.displayContext.context.resources.displayMetrics
+        state.displayFlow.value = display
+        state.displayMetricsFlow.value = state.graph.displayContext.context.resources.displayMetrics
       }
     }
 
     displayManager.registerDisplayListener(listener, null)
   }
+
+  private fun createDisplayState(displayId: Int): ActiveDisplayState? {
+    val display = displayManager.getDisplay(displayId) ?: return null
+    val displayFlow = MutableStateFlow(display)
+    val displayContext = applicationContext.context.createDisplayContext(display)
+    val displayMetricsFlow = MutableStateFlow(displayContext.resources.displayMetrics)
+    val graph = displayGraphFactory.create(DisplayId(displayId), displayFlow.asStateFlow(), displayMetricsFlow.asStateFlow())
+    return ActiveDisplayState(graph, displayFlow, displayMetricsFlow)
+  }
+
+  private class ActiveDisplayState(
+    val graph: DisplayGraph,
+    val displayFlow: MutableStateFlow<Display>,
+    val displayMetricsFlow: MutableStateFlow<DisplayMetrics>,
+  )
 }

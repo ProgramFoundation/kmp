@@ -4,11 +4,12 @@ package foundation.software.kmp.core.display
 
 import android.content.Context
 import android.hardware.display.DisplayManager
+import android.util.DisplayMetrics
 import android.view.Display
 import dev.zacsweers.metro.GraphExtension
 import dev.zacsweers.metro.Provides
 import foundation.software.kmp.core.context.ApplicationContext
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 @JvmInline
 public value class DisplayContext(public val context: Context)
@@ -22,8 +23,8 @@ public value class DisplayId(public val id: Int)
 public interface DisplayGraph {
   public val displayId: DisplayId
   public val displayContext: DisplayContext
-  public val displayFlow: MutableStateFlow<Display>
-  public val displayMetricsFlow: MutableStateFlow<android.util.DisplayMetrics>
+  public val displayFlow: StateFlow<Display>
+  public val displayMetricsFlow: StateFlow<DisplayMetrics>
 
   @Provides
   public fun provideDisplay(displayManager: DisplayManager, displayId: DisplayId): Display =
@@ -33,16 +34,12 @@ public interface DisplayGraph {
   public fun provideDisplayContext(applicationContext: ApplicationContext, display: Display): DisplayContext =
     DisplayContext(applicationContext.context.createDisplayContext(display))
 
-  @Provides
-  public fun provideDisplayFlow(display: Display): MutableStateFlow<Display> =
-    MutableStateFlow(display)
-
-  @Provides
-  public fun provideDisplayMetricsFlow(displayContext: DisplayContext): MutableStateFlow<android.util.DisplayMetrics> =
-    MutableStateFlow(displayContext.context.resources.displayMetrics)
-
   @GraphExtension.Factory
   public interface Factory {
-    public fun create(@Provides displayId: DisplayId): DisplayGraph
+    public fun create(
+      @Provides displayId: DisplayId,
+      @Provides displayFlow: StateFlow<Display>,
+      @Provides displayMetricsFlow: StateFlow<DisplayMetrics>,
+    ): DisplayGraph
   }
 }
