@@ -33,23 +33,13 @@ public interface DisplayGraph {
   public interface Factory {
     public fun create(
       @Provides displayId: DisplayId,
-      @Provides applicationContext: ApplicationContext
+      @Provides displayContext: DisplayContext
     ): DisplayGraph
   }
 }
 
 @ContributesTo(DisplayScope::class)
 public interface DisplayModule {
-  @Provides
-  @SingleIn(DisplayScope::class)
-  public fun provideDisplayContext(
-    applicationContext: ApplicationContext,
-    displayId: DisplayId
-  ): DisplayContext {
-    val displayManager = applicationContext.context.getSystemService(DisplayManager::class.java)
-    val display = displayManager.getDisplay(displayId.id)
-    return DisplayContext(applicationContext.context.createDisplayContext(display))
-  }
 
   @Provides
   @SingleIn(DisplayScope::class)
@@ -78,13 +68,19 @@ public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
   private val _displaysFlow = MutableStateFlow<Map<Int, DisplayState>>(emptyMap())
   public val displaysFlow: StateFlow<Map<Int, DisplayState>> = _displaysFlow.asStateFlow()
 
+  private fun createGraphForDisplay(displayId: Int): DisplayGraph {
+    val display = displayManager.getDisplay(displayId)
+    val displayContext = DisplayContext(applicationContext.context.createDisplayContext(display))
+    return displayGraphFactory.create(
+      displayId = DisplayId(displayId),
+      displayContext = displayContext
+    )
+  }
+
   public fun startObserving() {
     val listener = object : DisplayManager.DisplayListener {
       override fun onDisplayAdded(displayId: Int) {
-        val graph = displayGraphFactory.create(
-          displayId = DisplayId(displayId),
-          applicationContext = applicationContext
-        )
+        val graph = createGraphForDisplay(displayId)
         val state = DisplayState(graph)
         activeDisplays[displayId] = state
         _displaysFlow.value = activeDisplays.toMap()
@@ -105,10 +101,7 @@ public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
 
     // Initial population
     displayManager.displays.forEach { display ->
-      val graph = displayGraphFactory.create(
-        displayId = DisplayId(display.displayId),
-        applicationContext = applicationContext
-      )
+      val graph = createGraphForDisplay(display.displayId)
       activeDisplays[display.displayId] = DisplayState(graph)
     }
     _displaysFlow.value = activeDisplays.toMap()
