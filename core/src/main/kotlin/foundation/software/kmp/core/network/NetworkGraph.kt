@@ -4,7 +4,7 @@ package foundation.software.kmp.core.network
 
 import android.net.Network
 import android.net.NetworkCapabilities
-import dev.zacsweers.metro.DependencyGraph
+import dev.zacsweers.metro.GraphExtension
 import dev.zacsweers.metro.Provides
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -14,13 +14,13 @@ public value class NetworkCoroutineScope(public val coroutineScope: CoroutineSco
 
 public annotation class NetworkScope
 
-@DependencyGraph(NetworkScope::class)
+@GraphExtension(NetworkScope::class)
 public interface NetworkGraph {
   public val network: Network
   public val coroutineScope: NetworkCoroutineScope
   public val networkCapabilities: StateFlow<NetworkCapabilities?>
 
-  @DependencyGraph.Factory
+  @GraphExtension.Factory
   public interface Factory {
     public fun create(
       @Provides network: Network,

@@ -4,7 +4,7 @@ package foundation.software.kmp.core.display
 
 import android.content.Context
 import android.view.Display
-import dev.zacsweers.metro.DependencyGraph
+import dev.zacsweers.metro.GraphExtension
 import dev.zacsweers.metro.Provides
 import kotlinx.coroutines.flow.StateFlow
 
@@ -16,14 +16,14 @@ public annotation class DisplayScope
 @JvmInline
 public value class DisplayId(public val id: Int)
 
-@DependencyGraph(DisplayScope::class)
+@GraphExtension(DisplayScope::class)
 public interface DisplayGraph {
   public val displayId: DisplayId
   public val displayContext: DisplayContext
   public val displayFlow: StateFlow<Display>
   public val displayMetricsFlow: StateFlow<android.util.DisplayMetrics>
 
-  @DependencyGraph.Factory
+  @GraphExtension.Factory
   public interface Factory {
     public fun create(
       @Provides displayId: DisplayId,
