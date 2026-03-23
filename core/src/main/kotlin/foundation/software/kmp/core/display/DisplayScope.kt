@@ -29,18 +29,6 @@ public interface DisplayGraph {
   public val display: Display
   public val displayMetrics: android.util.DisplayMetrics
 
-  @DependencyGraph.Factory
-  public interface Factory {
-    public fun create(
-      @Provides displayId: DisplayId,
-      @Provides displayContext: DisplayContext
-    ): DisplayGraph
-  }
-}
-
-@ContributesTo(DisplayScope::class)
-public interface DisplayModule {
-
   @Provides
   @SingleIn(DisplayScope::class)
   public fun provideDisplay(displayContext: DisplayContext): Display {
@@ -53,7 +41,16 @@ public interface DisplayModule {
   public fun provideDisplayMetrics(displayContext: DisplayContext): android.util.DisplayMetrics {
     return displayContext.context.resources.displayMetrics
   }
+
+  @DependencyGraph.Factory
+  public interface Factory {
+    public fun create(
+      @Provides displayId: DisplayId,
+      @Provides displayContext: DisplayContext
+    ): DisplayGraph
+  }
 }
+
 
 @SingleIn(AppScope::class)
 public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
