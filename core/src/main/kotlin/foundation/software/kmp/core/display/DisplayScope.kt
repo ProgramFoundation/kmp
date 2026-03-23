@@ -60,12 +60,20 @@ public interface DisplayModule {
 public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
   private val applicationContext: ApplicationContext,
   private val displayGraphFactory: DisplayGraph.Factory,
+  private val displayManager: DisplayManager,
   private val appScope: ApplicationCoroutineScope
 ) {
-  private val displayManager = applicationContext.context.getSystemService(DisplayManager::class.java)
   private val activeDisplays = mutableMapOf<Int, DisplayState>()
 
-  private val _displaysFlow = MutableStateFlow<Map<Int, DisplayState>>(emptyMap())
+  private fun getInitialDisplays(): Map<Int, DisplayState> {
+    displayManager.displays.forEach { display ->
+      val graph = createGraphForDisplay(display.displayId)
+      activeDisplays[display.displayId] = DisplayState(graph)
+    }
+    return activeDisplays.toMap()
+  }
+
+  private val _displaysFlow = MutableStateFlow<Map<Int, DisplayState>>(getInitialDisplays())
   public val displaysFlow: StateFlow<Map<Int, DisplayState>> = _displaysFlow.asStateFlow()
 
   private fun createGraphForDisplay(displayId: Int): DisplayGraph {
@@ -98,13 +106,6 @@ public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
     }
 
     displayManager.registerDisplayListener(listener, null)
-
-    // Initial population
-    displayManager.displays.forEach { display ->
-      val graph = createGraphForDisplay(display.displayId)
-      activeDisplays[display.displayId] = DisplayState(graph)
-    }
-    _displaysFlow.value = activeDisplays.toMap()
   }
 
   public data class DisplayState(
