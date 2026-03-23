@@ -27,7 +27,7 @@ public inline fun <reified T> SharedPreferences.delegate(
 
     override fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
       val key = "${thisRef::class.qualifiedName}.${property.name}"
-      with(edit()) {
+      edit().apply {
         when (T::class) {
           String::class -> putString(key, value as String?)
           Int::class -> putInt(key, value as Int)
