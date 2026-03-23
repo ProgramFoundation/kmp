@@ -70,10 +70,19 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
 ) {
   private val activeNetworks = mutableMapOf<Network, NetworkState>()
 
+  @android.annotation.SuppressLint("MissingPermission")
   public fun startObserving() {
-    val request = NetworkRequest.Builder()
-      .clearCapabilities()
-      .build()
+    val requestBuilder = NetworkRequest.Builder()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      requestBuilder.clearCapabilities()
+    } else {
+      // Prior to API 30, we have to manually clear out default capabilities if we want ALL networks
+      requestBuilder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+      requestBuilder.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)
+      requestBuilder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+    }
+
+    val request = requestBuilder.build()
 
     connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
       override fun onAvailable(network: Network) {

@@ -27,6 +27,7 @@ import foundation.software.kmp.core.coroutines.IoDispatcher
 import foundation.software.kmp.core.coroutines.ApplicationCoroutineScope
 import foundation.software.kmp.core.context.ApplicationContext
 import kotlinx.coroutines.flow.flowOn
+import android.annotation.SuppressLint
 
 @SingleIn(AppScope::class)
 public class SensorFlows @Inject constructor(
@@ -77,6 +78,7 @@ public class LocationFlows @Inject constructor(
   private val scope: ApplicationCoroutineScope,
   private val ioDispatcher: IoDispatcher
 ) {
+  @SuppressLint("MissingPermission")
   public fun locationFlow(provider: String, minTimeMs: Long = 1000L, minDistanceM: Float = 0f): SharedFlow<Location> =
     callbackFlow {
       val listener = LocationListener { location ->
