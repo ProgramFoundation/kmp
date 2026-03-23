@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 package foundation.software.kmp.core.context
 
+import android.app.Activity
 import android.content.Context
 import dev.zacsweers.metro.DependencyGraph
+import dev.zacsweers.metro.GraphExtension
 import dev.zacsweers.metro.Provides
 
 @JvmInline
@@ -11,13 +13,16 @@ public value class ApplicationContext(public val context: Context)
 
 public annotation class ActivityScope
 
-@DependencyGraph(ActivityScope::class)
+@GraphExtension(ActivityScope::class)
 public interface ActivityGraph {
-  public val activityContext: ActivityContext
+  public val activity: Activity
 
-  @DependencyGraph.Factory
+  @Provides
+  public fun provideActivityContext(activity: Activity): ActivityContext = ActivityContext(activity)
+
+  @GraphExtension.Factory
   public interface Factory {
-    public fun create(@Provides activityContext: ActivityContext): ActivityGraph
+    public fun create(@Provides activity: Activity): ActivityGraph
   }
 }
 

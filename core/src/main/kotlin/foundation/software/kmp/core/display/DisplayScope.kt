@@ -26,27 +26,16 @@ public value class DisplayId(public val id: Int)
 public interface DisplayGraph {
   public val displayId: DisplayId
   public val displayContext: DisplayContext
-  public val display: Display
-  public val displayMetrics: android.util.DisplayMetrics
-
-  @Provides
-  @SingleIn(DisplayScope::class)
-  public fun provideDisplay(displayContext: DisplayContext): Display {
-    val displayManager = displayContext.context.getSystemService(DisplayManager::class.java)
-    // The display context is already tied to the specific display
-    return displayManager.getDisplay(displayContext.context.display?.displayId ?: Display.DEFAULT_DISPLAY)
-  }
-
-  @Provides
-  public fun provideDisplayMetrics(displayContext: DisplayContext): android.util.DisplayMetrics {
-    return displayContext.context.resources.displayMetrics
-  }
+  public val displayFlow: StateFlow<Display>
+  public val displayMetricsFlow: StateFlow<android.util.DisplayMetrics>
 
   @DependencyGraph.Factory
   public interface Factory {
     public fun create(
       @Provides displayId: DisplayId,
-      @Provides displayContext: DisplayContext
+      @Provides displayContext: DisplayContext,
+      @Provides displayFlow: StateFlow<Display>,
+      @Provides displayMetricsFlow: StateFlow<android.util.DisplayMetrics>
     ): DisplayGraph
   }
 }
@@ -64,7 +53,7 @@ public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
   private fun getInitialDisplays(): Map<Int, DisplayState> {
     displayManager.displays.forEach { display ->
       val graph = createGraphForDisplay(display.displayId)
-      activeDisplays[display.displayId] = DisplayState(graph)
+      activeDisplays[display.displayId] = graph
     }
     return activeDisplays.toMap()
   }
@@ -72,20 +61,27 @@ public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
   private val _displaysFlow = MutableStateFlow<Map<Int, DisplayState>>(getInitialDisplays())
   public val displaysFlow: StateFlow<Map<Int, DisplayState>> = _displaysFlow.asStateFlow()
 
-  private fun createGraphForDisplay(displayId: Int): DisplayGraph {
+  private fun createGraphForDisplay(displayId: Int): DisplayState {
     val display = displayManager.getDisplay(displayId)
     val displayContext = DisplayContext(applicationContext.context.createDisplayContext(display))
-    return displayGraphFactory.create(
+
+    val displayFlow = MutableStateFlow(display)
+    val displayMetricsFlow = MutableStateFlow(displayContext.context.resources.displayMetrics)
+
+    val graph = displayGraphFactory.create(
       displayId = DisplayId(displayId),
-      displayContext = displayContext
+      displayContext = displayContext,
+      displayFlow = displayFlow.asStateFlow(),
+      displayMetricsFlow = displayMetricsFlow.asStateFlow()
     )
+
+    return DisplayState(graph, displayFlow, displayMetricsFlow)
   }
 
   public fun startObserving() {
     val listener = object : DisplayManager.DisplayListener {
       override fun onDisplayAdded(displayId: Int) {
-        val graph = createGraphForDisplay(displayId)
-        val state = DisplayState(graph)
+        val state = createGraphForDisplay(displayId)
         activeDisplays[displayId] = state
         _displaysFlow.value = activeDisplays.toMap()
       }
@@ -96,8 +92,14 @@ public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
       }
 
       override fun onDisplayChanged(displayId: Int) {
-        // Trigger a re-emit to notify subscribers of changes to an existing display
-        _displaysFlow.value = activeDisplays.toMap()
+        val state = activeDisplays[displayId]
+        if (state != null) {
+          val display = displayManager.getDisplay(displayId)
+          if (display != null) {
+            state.displayFlow.value = display
+            state.displayMetricsFlow.value = state.graph.displayContext.context.resources.displayMetrics
+          }
+        }
       }
     }
 
@@ -105,6 +107,8 @@ public class DisplayObserver @dev.zacsweers.metro.Inject constructor(
   }
 
   public data class DisplayState(
-    public val graph: DisplayGraph
+    public val graph: DisplayGraph,
+    internal val displayFlow: MutableStateFlow<Display>,
+    internal val displayMetricsFlow: MutableStateFlow<android.util.DisplayMetrics>
   )
 }
