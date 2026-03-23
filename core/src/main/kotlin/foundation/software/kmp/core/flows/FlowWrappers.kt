@@ -21,10 +21,16 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.CoroutineScope
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import dev.zacsweers.metro.AppScope
+import foundation.software.kmp.core.coroutines.DefaultDispatcher
+import kotlinx.coroutines.flow.flowOn
 
+@SingleIn(AppScope::class)
 public class SensorFlows @Inject constructor(
   private val sensorManager: SensorManager,
-  private val scope: CoroutineScope
+  private val scope: CoroutineScope,
+  private val defaultDispatcher: DefaultDispatcher
 ) {
   public sealed interface SensorResult {
     public data class SensorChanged(public val event: SensorEvent) : SensorResult
@@ -54,15 +60,19 @@ public class SensorFlows @Inject constructor(
       awaitClose {
         sensorManager.unregisterListener(listener)
       }
-    }.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
+    }
+    .flowOn(defaultDispatcher.dispatcher)
+    .shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
 
   public fun accelerometerFlow(): SharedFlow<SensorResult> = sensorFlow(Sensor.TYPE_ACCELEROMETER)
   public fun gyroscopeFlow(): SharedFlow<SensorResult> = sensorFlow(Sensor.TYPE_GYROSCOPE)
 }
 
+@SingleIn(AppScope::class)
 public class LocationFlows @Inject constructor(
   private val locationManager: LocationManager,
-  private val scope: CoroutineScope
+  private val scope: CoroutineScope,
+  private val defaultDispatcher: DefaultDispatcher
 ) {
   public fun locationFlow(provider: String, minTimeMs: Long = 1000L, minDistanceM: Float = 0f): SharedFlow<Location> =
     callbackFlow {
@@ -79,15 +89,19 @@ public class LocationFlows @Inject constructor(
       awaitClose {
         locationManager.removeUpdates(listener)
       }
-    }.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
+    }
+    .flowOn(defaultDispatcher.dispatcher)
+    .shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
 
   public fun gpsLocationFlow(): SharedFlow<Location> = locationFlow(LocationManager.GPS_PROVIDER)
   public fun networkLocationFlow(): SharedFlow<Location> = locationFlow(LocationManager.NETWORK_PROVIDER)
 }
 
+@SingleIn(AppScope::class)
 public class BroadcastFlows @Inject constructor(
   private val context: Context,
-  private val scope: CoroutineScope
+  private val scope: CoroutineScope,
+  private val defaultDispatcher: DefaultDispatcher
 ) {
   public fun broadcastFlow(intentFilter: IntentFilter): SharedFlow<Intent> =
     callbackFlow {
@@ -102,5 +116,7 @@ public class BroadcastFlows @Inject constructor(
       awaitClose {
         context.unregisterReceiver(receiver)
       }
-    }.shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
+    }
+    .flowOn(defaultDispatcher.dispatcher)
+    .shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
 }
