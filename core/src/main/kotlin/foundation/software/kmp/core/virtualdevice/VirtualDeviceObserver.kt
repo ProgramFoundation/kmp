@@ -23,7 +23,7 @@ public class VirtualDeviceObserver @dev.zacsweers.metro.Inject constructor(
 
   init {
     virtualDeviceManager.virtualDevices.forEach { device ->
-      val graph = virtualDeviceGraphFactory.create(VirtualDeviceId(device.deviceId), VirtualDeviceName(device.name))
+      val graph = virtualDeviceGraphFactory.create(device)
       activeDeviceGraphs[device.deviceId] = graph
     }
     _virtualDevicesFlow = MutableStateFlow(activeDeviceGraphs.toMap())
@@ -35,7 +35,7 @@ public class VirtualDeviceObserver @dev.zacsweers.metro.Inject constructor(
     val listener = object : VirtualDeviceManager.VirtualDeviceListener {
       override fun onVirtualDeviceCreated(deviceId: Int) {
         val device = virtualDeviceManager.virtualDevices.find { it.deviceId == deviceId } ?: return
-        val graph = virtualDeviceGraphFactory.create(VirtualDeviceId(device.deviceId), VirtualDeviceName(device.name))
+        val graph = virtualDeviceGraphFactory.create(device)
         activeDeviceGraphs[deviceId] = graph
         _virtualDevicesFlow.value = activeDeviceGraphs.toMap()
       }
