@@ -10,8 +10,10 @@ import foundation.software.kmp.core.coroutines.DefaultDispatcher
 import foundation.software.kmp.core.coroutines.DispatchersModule
 import foundation.software.kmp.core.coroutines.IoDispatcher
 import foundation.software.kmp.core.coroutines.MainDispatcher
+import foundation.software.kmp.core.coroutines.ApplicationCoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -35,4 +37,9 @@ public interface TestDispatchersModule {
   @Provides
   @SingleIn(AppScope::class)
   public fun provideDefaultDispatcher(testDispatcher: TestDispatcher): DefaultDispatcher = DefaultDispatcher(testDispatcher)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  public fun provideApplicationCoroutineScope(testDispatcher: TestDispatcher): ApplicationCoroutineScope =
+    ApplicationCoroutineScope(TestScope(testDispatcher))
 }

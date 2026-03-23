@@ -23,18 +23,19 @@ import kotlinx.coroutines.CoroutineScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import dev.zacsweers.metro.AppScope
-import foundation.software.kmp.core.coroutines.DefaultDispatcher
+import foundation.software.kmp.core.coroutines.IoDispatcher
+import foundation.software.kmp.core.coroutines.ApplicationCoroutineScope
 import kotlinx.coroutines.flow.flowOn
 
 @SingleIn(AppScope::class)
 public class SensorFlows @Inject constructor(
   private val sensorManager: SensorManager,
-  private val scope: CoroutineScope,
-  private val defaultDispatcher: DefaultDispatcher
+  private val scope: ApplicationCoroutineScope,
+  private val ioDispatcher: IoDispatcher
 ) {
   public sealed interface SensorResult {
     public data class SensorChanged(public val event: SensorEvent) : SensorResult
-    public data class AccuracyChanged(public val sensor: Sensor?, public val accuracy: Int) : SensorResult
+    public data class AccuracyChanged(public val accuracy: Int) : SensorResult
   }
 
   public fun sensorFlow(sensorType: Int, samplingPeriodUs: Int = SensorManager.SENSOR_DELAY_NORMAL): SharedFlow<SensorResult> =
@@ -51,7 +52,7 @@ public class SensorFlows @Inject constructor(
         }
 
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-          trySend(SensorResult.AccuracyChanged(sensor, accuracy))
+          trySend(SensorResult.AccuracyChanged(accuracy))
         }
       }
 
@@ -61,8 +62,8 @@ public class SensorFlows @Inject constructor(
         sensorManager.unregisterListener(listener)
       }
     }
-    .flowOn(defaultDispatcher.dispatcher)
-    .shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
+    .flowOn(ioDispatcher.dispatcher)
+    .shareIn(scope.coroutineScope, SharingStarted.WhileSubscribed(), replay = 1)
 
   public val accelerometerFlow: SharedFlow<SensorResult> by lazy { sensorFlow(Sensor.TYPE_ACCELEROMETER) }
   public val gyroscopeFlow: SharedFlow<SensorResult> by lazy { sensorFlow(Sensor.TYPE_GYROSCOPE) }
@@ -71,8 +72,8 @@ public class SensorFlows @Inject constructor(
 @SingleIn(AppScope::class)
 public class LocationFlows @Inject constructor(
   private val locationManager: LocationManager,
-  private val scope: CoroutineScope,
-  private val defaultDispatcher: DefaultDispatcher
+  private val scope: ApplicationCoroutineScope,
+  private val ioDispatcher: IoDispatcher
 ) {
   public fun locationFlow(provider: String, minTimeMs: Long = 1000L, minDistanceM: Float = 0f): SharedFlow<Location> =
     callbackFlow {
@@ -90,8 +91,8 @@ public class LocationFlows @Inject constructor(
         locationManager.removeUpdates(listener)
       }
     }
-    .flowOn(defaultDispatcher.dispatcher)
-    .shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
+    .flowOn(ioDispatcher.dispatcher)
+    .shareIn(scope.coroutineScope, SharingStarted.WhileSubscribed(), replay = 1)
 
   public val gpsLocationFlow: SharedFlow<Location> by lazy { locationFlow(LocationManager.GPS_PROVIDER) }
   public val networkLocationFlow: SharedFlow<Location> by lazy { locationFlow(LocationManager.NETWORK_PROVIDER) }
@@ -100,8 +101,8 @@ public class LocationFlows @Inject constructor(
 @SingleIn(AppScope::class)
 public class BroadcastFlows @Inject constructor(
   private val context: Context,
-  private val scope: CoroutineScope,
-  private val defaultDispatcher: DefaultDispatcher
+  private val scope: ApplicationCoroutineScope,
+  private val ioDispatcher: IoDispatcher
 ) {
   public fun broadcastFlow(intentFilter: IntentFilter): SharedFlow<Intent> =
     callbackFlow {
@@ -117,6 +118,6 @@ public class BroadcastFlows @Inject constructor(
         context.unregisterReceiver(receiver)
       }
     }
-    .flowOn(defaultDispatcher.dispatcher)
-    .shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
+    .flowOn(ioDispatcher.dispatcher)
+    .shareIn(scope.coroutineScope, SharingStarted.WhileSubscribed(), replay = 1)
 }
