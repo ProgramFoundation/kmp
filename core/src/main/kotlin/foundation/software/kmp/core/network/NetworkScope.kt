@@ -15,8 +15,8 @@ import dev.zacsweers.metro.SingleIn
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.createGraphFactory
 import foundation.software.kmp.core.context.ApplicationContext
+import foundation.software.kmp.core.coroutines.IoDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -66,6 +66,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
   private val applicationContext: ApplicationContext,
   private val networkGraphFactory: NetworkGraph.Factory,
   private val connectivityManager: ConnectivityManager,
+  private val ioDispatcher: IoDispatcher,
 ) {
   private val activeNetworks = mutableMapOf<Network, NetworkState>()
 
@@ -76,7 +77,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
 
     connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
       override fun onAvailable(network: Network) {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val scope = CoroutineScope(SupervisorJob() + ioDispatcher.dispatcher)
         val capabilities = connectivityManager.getNetworkCapabilities(network)
         val capabilitiesFlow = MutableStateFlow<NetworkCapabilities?>(capabilities)
 
