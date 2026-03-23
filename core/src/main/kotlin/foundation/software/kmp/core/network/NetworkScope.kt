@@ -12,16 +12,11 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.createGraphFactory
-import foundation.software.kmp.core.context.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,9 +58,9 @@ public interface TelephonyGraph {
 
 @SingleIn(AppScope::class)
 public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
-  private val applicationContext: ApplicationContext,
   private val networkGraphFactory: NetworkGraph.Factory,
   private val connectivityManager: ConnectivityManager,
+  private val telephonyManager: TelephonyManager,
 ) {
   private val activeNetworks = mutableMapOf<Network, NetworkState>()
 
@@ -88,16 +83,14 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
 
         var telephonyGraph: TelephonyGraph? = null
         if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) {
-          var tm = applicationContext.context.getSystemService(TelephonyManager::class.java)
+          var tm = telephonyManager
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val specifier = capabilities.networkSpecifier
             if (specifier is android.net.TelephonyNetworkSpecifier) {
-              tm = tm?.createForSubscriptionId(specifier.subscriptionId) ?: tm
+              tm = tm.createForSubscriptionId(specifier.subscriptionId)
             }
           }
-          if (tm != null) {
-            telephonyGraph = dev.zacsweers.metro.createGraphFactory<TelephonyGraph.Factory>().create(tm)
-          }
+          telephonyGraph = createGraphFactory<TelephonyGraph.Factory>().create(tm)
         }
 
         activeNetworks[network] = NetworkState(
