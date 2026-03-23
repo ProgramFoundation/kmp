@@ -32,6 +32,7 @@ rootProject.name = "foundation.software.kmp"
 
 include(
   ":app",
+  ":core",
   ":screen-details",
   ":screen-home",
   ":screen-settings",
