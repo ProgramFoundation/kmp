@@ -5,42 +5,12 @@ package foundation.software.kmp.core.display
 import android.hardware.display.DisplayManager
 import android.view.Display
 import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesTo
-import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.GraphExtension
-import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import foundation.software.kmp.core.context.ApplicationContext
-import foundation.software.kmp.core.context.DisplayContext
 import foundation.software.kmp.core.coroutines.ApplicationCoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-
-public annotation class DisplayScope
-
-@JvmInline
-public value class DisplayId(public val id: Int)
-
-@DependencyGraph(DisplayScope::class)
-public interface DisplayGraph {
-  public val displayId: DisplayId
-  public val displayContext: DisplayContext
-  public val displayFlow: StateFlow<Display>
-  public val displayMetricsFlow: StateFlow<android.util.DisplayMetrics>
-
-  @DependencyGraph.Factory
-  public interface Factory {
-    public fun create(
-      @Provides displayId: DisplayId,
-      @Provides displayContext: DisplayContext,
-      @Provides displayFlow: StateFlow<Display>,
-      @Provides displayMetricsFlow: StateFlow<android.util.DisplayMetrics>
-    ): DisplayGraph
-  }
-}
-
 
 @SingleIn(AppScope::class)
 public class DisplayObserver @dev.zacsweers.metro.Inject constructor(

@@ -7,59 +7,16 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
-import android.telephony.TelephonyManager
 import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.createGraphFactory
 import foundation.software.kmp.core.context.ApplicationContext
 import foundation.software.kmp.core.coroutines.IoDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-
-public annotation class NetworkScope
-
-@JvmInline
-public value class NetworkCoroutineScope(public val coroutineScope: CoroutineScope)
-
-@DependencyGraph(NetworkScope::class)
-public interface NetworkGraph {
-  public val network: Network
-  public val coroutineScope: NetworkCoroutineScope
-  public val networkCapabilities: StateFlow<NetworkCapabilities?>
-
-  @DependencyGraph.Factory
-  public interface Factory {
-    public fun create(
-      @Provides network: Network,
-      @Provides coroutineScope: NetworkCoroutineScope,
-      @Provides networkCapabilities: StateFlow<NetworkCapabilities?>,
-    ): NetworkGraph
-  }
-}
-
-public annotation class TelephonyScope
-
-@DependencyGraph(TelephonyScope::class)
-public interface TelephonyGraph {
-  public val telephonyManager: TelephonyManager
-
-  @DependencyGraph.Factory
-  public interface Factory {
-    public fun create(
-      @Provides telephonyManager: TelephonyManager,
-    ): TelephonyGraph
-  }
-}
 
 @SingleIn(AppScope::class)
 public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
@@ -108,7 +65,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
 
           var telephonyGraph: TelephonyGraph? = null
           if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) {
-            var tm = applicationContext.context.getSystemService(TelephonyManager::class.java)
+            var tm = applicationContext.context.getSystemService(android.telephony.TelephonyManager::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
               val specifier = networkCapabilities.networkSpecifier
               if (specifier is android.net.TelephonyNetworkSpecifier) {
@@ -116,7 +73,7 @@ public class ConnectivityObserver @dev.zacsweers.metro.Inject constructor(
               }
             }
             if (tm != null) {
-              telephonyGraph = dev.zacsweers.metro.createGraphFactory<TelephonyGraph.Factory>().create(tm)
+              telephonyGraph = createGraphFactory<TelephonyGraph.Factory>().create(tm)
             }
           }
 
