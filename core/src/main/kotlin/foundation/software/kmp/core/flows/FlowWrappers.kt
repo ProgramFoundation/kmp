@@ -116,7 +116,11 @@ public class BroadcastFlows @Inject constructor(
         }
       }
 
-      applicationContext.context.registerReceiver(receiver, intentFilter)
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        applicationContext.context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+      } else {
+        applicationContext.context.registerReceiver(receiver, intentFilter)
+      }
 
       awaitClose {
         applicationContext.context.unregisterReceiver(receiver)
