@@ -16,6 +16,8 @@ public annotation class BluetoothDeviceScope
 public interface BluetoothDeviceGraph {
   public val device: BluetoothDevice
   public val coroutineScope: CoroutineScope
+  public val a2dpGraphFactory: BluetoothA2dpGraph.Factory
+  public val headsetGraphFactory: BluetoothHeadsetGraph.Factory
 
   @Provides
   @android.annotation.SuppressLint("MissingPermission")
