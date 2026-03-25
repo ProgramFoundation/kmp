@@ -1,7 +1,6 @@
 // Copyright (C) 2024 Zac Sweers
 // SPDX-License-Identifier: Apache-2.0
 pluginManagement {
-  includeBuild("build-logic")
   repositories {
     mavenCentral()
     google()
@@ -29,29 +28,16 @@ dependencyResolutionManagement {
 
 plugins { id("com.gradle.develocity") }
 
-rootProject.name = "metro"
+rootProject.name = "foundation.software.kmp"
 
 include(
-  ":compiler",
-  ":compiler-compat",
-  ":compiler-tests",
-  ":gradle-plugin",
-  ":interop-dagger",
-  ":interop-javax",
-  ":interop-jakarta",
-  ":interop-guice",
-  ":metrox-android",
-  ":metrox-viewmodel",
-  ":metrox-viewmodel-compose",
-  ":runtime",
+  ":app",
+  ":core",
+  ":core-testing",
+  ":screen-details",
+  ":screen-home",
+  ":screen-settings",
 )
-
-// Include compiler-compat versions
-rootProject.projectDir.resolve("compiler-compat").listFiles()!!.forEach {
-  if (it.isDirectory && it.name.startsWith("k") && File(it, "version.txt").exists()) {
-    include(":compiler-compat:${it.name}")
-  }
-}
 
 val VERSION_NAME: String by extra.properties
 

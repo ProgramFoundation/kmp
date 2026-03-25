@@ -1,107 +1,79 @@
-# 🚇 Metro
+# Compose ViewModels Sample
 
-A compile-time dependency injection framework for Kotlin Multiplatform, powered by a Kotlin compiler plugin.
+This sample demonstrates how to use Metro for ViewModel injection in a multi-module Compose Multiplatform app with Compose Navigation.
 
-[![Maven Central](https://img.shields.io/maven-central/v/dev.zacsweers.metro/runtime.svg)](https://github.com/ZacSweers/metro/releases)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.20%20--%202.4.0--dev--2124-blue.svg?logo=kotlin)](docs/compatibility.md)
-[![Build Status](https://github.com/ZacSweers/metro/actions/workflows/ci.yml/badge.svg)](https://github.com/ZacSweers/metro/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+## Module Structure
 
----
-
-## What is Metro?
-
-Metro is a compile-time dependency injection framework that combines the best of [Dagger](https://github.com/google/dagger), [Anvil](https://github.com/square/anvil), and [kotlin-inject](https://github.com/evant/kotlin-inject) into one cohesive solution.
-
-**Key Features:**
-
-- ✅ **Compile-time validation** – Catch dependency graph errors during compilation, not at runtime
-- 🧩 **FIR/IR code generation** – No KAPT or KSP required, just a Kotlin compiler plugin
-- 🎯 **Kotlin-first API** – Inspired by kotlin-inject with top-level function injection and optional dependencies
-- 🗡️ **Dagger-esque runtime** – Lean generated code with familiar patterns
-- ⚒️ **Anvil-style aggregation** – `@ContributesTo`, `@ContributesBinding`, and more
-- 🌐 **Multiplatform** – Supports JVM, JS, WASM, and Native targets
-- 💡 **Helpful diagnostics** – Detailed error messages with actionable suggestions
-- 🔗 **Advanced interop** – Migrate incrementally from Dagger, kotlin-inject, or Guice
-- ⚡️ **Fast** - At build time, at runtime
-
----
-
-## Quick Start
-
-**1. Apply the Gradle plugin:**
-
-```kotlin
-plugins {
-  id("dev.zacsweers.metro") version "<version>"
-}
+```
+compose-viewmodels/
+├── app/             # Multiplatform app module
+├── screen-home/     # Home screen with standard ViewModel injection
+└── screen-details/  # Details screen with manual assisted ViewModel injection
+└── screen-settings/ # Settings screen with assisted ViewModel injection
 ```
 
-**2. Define a dependency graph:**
+## Running
+
+- **Android**: `./gradlew -p samples :compose-viewmodels:app:installDebug`
+- **Desktop**: `./gradlew -p samples :compose-viewmodels:app:jvmRun`
+
+## Key Concepts
+
+### Standard ViewModel Injection
+
+ViewModels are contributed to a multibinding map using `@ContributesIntoMap` and `@ViewModelKey`:
 
 ```kotlin
-@DependencyGraph
-interface AppGraph {
-  val repository: UserRepository
-
-  @Provides
-  fun provideApi(): Api = ApiImpl()
-}
-
 @Inject
-class UserRepository(private val api: Api)
+@ViewModelKey(HomeViewModel::class)
+@ContributesIntoMap(ViewModelScope::class)
+class HomeViewModel : ViewModel() {
+  // ...
+}
 ```
 
-**3. Create and use the graph:**
+Then injected via Compose:
 
 ```kotlin
-val graph = createGraph<AppGraph>()
-val repository = graph.repository
+@Composable
+fun HomeScreen(viewModel: HomeViewModel = metroViewModel()) {
+  // ...
+}
 ```
 
----
+### Assisted ViewModel Injection
 
-## Documentation
+For ViewModels that need runtime parameters, use assisted injection:
 
-📚 **[zacsweers.github.io/metro](https://zacsweers.github.io/metro/latest/)**
+```kotlin
+@AssistedInject
+class DetailsViewModel(@Assisted val data: String) : ViewModel() {
+  // ...
 
-| Topic                                                                            |                                                |
-|----------------------------------------------------------------------------------|------------------------------------------------|
-| [Installation](https://zacsweers.github.io/metro/latest/installation/)           | Setup and configuration                        |
-| [Dependency Graphs](https://zacsweers.github.io/metro/latest/dependency-graphs/) | Define and create graphs                       |
-| [Provides](https://zacsweers.github.io/metro/latest/provides/)                   | Provider functions and properties              |
-| [Injection Types](https://zacsweers.github.io/metro/latest/injection-types/)     | Constructor, assisted, and member injection    |
-| [Scopes](https://zacsweers.github.io/metro/latest/scopes/)                       | Scoping and lifecycle management               |
-| [Aggregation](https://zacsweers.github.io/metro/latest/aggregation/)             | Anvil-style contributions across modules       |
-| [Interop](https://zacsweers.github.io/metro/latest/interop/)                     | Dagger, kotlin-inject, and Guice compatibility |
-| [Performance](https://zacsweers.github.io/metro/latest/performance/)             | Build and runtime performance                  |
-| [Compatibility](https://zacsweers.github.io/metro/latest/compatibility/)         | Supported Kotlin versions                      |
-| [FAQ](https://zacsweers.github.io/metro/latest/faq/)                             | Frequently asked questions                     |
-| [API Docs](https://zacsweers.github.io/metro/latest/api/)                        | Generated KDocs                                |
+  @AssistedFactory
+  @AssistedFactoryKey(Factory::class)
+  @ContributesIntoMap(ViewModelScope::class)
+  fun interface Factory : ViewModelAssistedFactory {
+    fun create(@Assisted data: String): DetailsViewModel
+  }
+}
+```
 
----
+Then injected via Compose:
 
-## Supported Platforms
+```kotlin
+@Composable
+fun DetailsScreen(
+  data: String,
+  viewModel: DetailsViewModel =
+    assistedMetroViewModel<DetailsViewModel, DetailsViewModel.Factory> { create(data) },
+) {
+  // ...
+}
+```
 
-Metro supports JVM, Android, JS, WASM, and Native targets. The compiler plugin works with all Kotlin Multiplatform project types.
+### Graph Structure
 
-See the [multiplatform docs](https://zacsweers.github.io/metro/latest/multiplatform/) for full details.
-
----
-
-License
--------
-
-    Copyright (C) 2025 Zac Sweers
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-       https://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+- `AppGraph` - App-scoped graph that provides the `ViewModelGraphProvider`
+- `ViewModelGraph` - ViewModel-scoped graph that contains the multibindings for ViewModels
+- `ViewModelGraphProvider` - Factory for creating `ViewModelGraph` instances, exposed via `LocalViewModelGraphProvider` CompositionLocal
