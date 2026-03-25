@@ -37,6 +37,11 @@ include(
   ":screen-details",
   ":screen-home",
   ":screen-settings",
+  ":hid:domain",
+  ":hid:bt-classic",
+  ":hid:gatt",
+  ":hid:usb",
+  ":hid:remote",
 )
 
 val VERSION_NAME: String by extra.properties
