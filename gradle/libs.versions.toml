@@ -205,6 +205,8 @@ ksp-symbolProcessing-aaEmbeddable = { module = "com.google.devtools.ksp:symbol-p
 testkit-support = { module =  "com.autonomousapps:gradle-testkit-support", version = "0.22"}
 testkit-truth = { module =  "com.autonomousapps:gradle-testkit-truth", version = "1.6.1"}
 truth = { module = "com.google.truth:truth", version = "1.4.5" }
+leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version = "2.14" }
+anrwatchdog = { module = "com.github.anrwatchdog:anrwatchdog", version = "1.4.0" }
 kct = { module = "dev.zacsweers.kctfork:core", version.ref = "kct" }
 kct-ksp = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kct" }
 

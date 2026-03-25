@@ -53,6 +53,11 @@ kotlin {
   }
 }
 
+dependencies {
+  debugImplementation(libs.leakcanary.android)
+  debugImplementation(libs.anrwatchdog)
+}
+
 android {
   namespace = "foundation.software.kmp"
 
