@@ -30,6 +30,7 @@ kotlin {
         implementation(libs.jetbrains.lifecycle.viewmodel.navigation3)
         implementation(libs.kotlinx.serialization.json)
         implementation(libs.compose.material3)
+        implementation(libs.compose.materialIcons)
         implementation(libs.compose.runtime)
       }
     }
